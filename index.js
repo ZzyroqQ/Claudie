@@ -209,10 +209,14 @@ client.on('interactionCreate', async (interaction) => {
         db.ticket_count = ticketIndex;
         writeDB(db);
 
+        // Získání URL loga serveru
+        const serverIcon = interaction.guild.iconURL({ dynamic: true });
+
         const internalInterfaceEmbed = new EmbedBuilder()
             .setTitle(`🎫 Communications Node: ${channelIdentifier}`)
             .setDescription(`System opened by request parameter of ${interaction.user}.\n\nPlease drop your structural issues and configuration requests down below. Management has been notified.`)
             .setColor('#34C759')
+            .setThumbnail(serverIcon) 
             .addFields(
                 { name: 'Issuer Account ID', value: `\`${interaction.user.id}\``, inline: true },
                 { name: 'Node Priority Level', value: '🟢 Standard System Inquiry', inline: true }
@@ -232,6 +236,7 @@ client.on('interactionCreate', async (interaction) => {
             const auditTicketLog = new EmbedBuilder()
                 .setTitle('📥 Communication Pipeline Formed')
                 .setColor('#34C759')
+                .setThumbnail(serverIcon) // ZDE: Přidáno logo serveru také do logů o otevření ticketu
                 .addFields(
                     { name: 'Ticket Channel', value: `${internalSupportChannel}`, inline: true },
                     { name: 'Originator Identity', value: `${interaction.user.tag}`, inline: true }
@@ -252,6 +257,7 @@ client.on('interactionCreate', async (interaction) => {
             const auditTicketCloseLog = new EmbedBuilder()
                 .setTitle('📤 Communication Pipeline Terminated')
                 .setColor('#FF3B30')
+                .setThumbnail(interaction.guild.iconURL({ dynamic: true })) // ZDE: Přidáno logo serveru do logů o zavření ticketu
                 .setDescription(`Channel index context: \`${interaction.channel.name}\` was flagged terminated.`)
                 .addFields({ name: 'Enforcing Identity', value: `${interaction.user.tag}`, inline: true })
                 .setTimestamp();
