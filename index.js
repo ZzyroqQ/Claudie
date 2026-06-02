@@ -12,335 +12,457 @@ const {
     ButtonStyle,
     ChannelType
 } = require('discord.js');
+const fs = require('node:fs');
+const path = require('node:path');
 
-//  config
+// \\ config
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const START_ROLE_ID = process.env.START_ROLE_ID;
 
-const BANNED_WORDS = ['scam', 'nitro-free', 'discord.gg/fake-invite'];
+const DB_PATH = path.join(__dirname, 'database.json');
+const LINK_REGEX = /(https?:\/\/[^\s]+)/g;
+const BANNED_WORDS = ['scam', 'nitro-free', 'discord.gg/fake-invite', 'free-nitro'];
 
-//  client
+// \\ dynamic safety system storage (database manager)
+function readDB() {
+    try {
+        if (!fs.existsSync(DB_PATH)) {
+            fs.writeFileSync(DB_PATH, JSON.stringify({ guilds: {}, warnings: {}, giveaways: [], ticket_count: 0 }, null, 4));
+        }
+        return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    } catch (e) {
+        console.error("Database read violation:", e);
+        return { guilds: {}, warnings: {}, giveaways: [], ticket_count: 0 };
+    }
+}
+
+function writeDB(data) {
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 4));
+    } catch (e) {
+        console.error("Database push violation:", e);
+    }
+}
+
+// \\ client initialization
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions
     ]
 });
 
-//  commands
+// \\ application slash layout commands
 const commands = [
-    new SlashCommandBuilder().setName('status').setDescription('Check system diagnostics'),
-    new SlashCommandBuilder().setName('giveaway').setDescription('Launch an interactive server giveaway event'),
+    new SlashCommandBuilder().setName('status').setDescription('Perform rigorous structural system integrity checks'),
+    
+    new SlashCommandBuilder()
+        .setName('giveaway')
+        .setDescription('Execute an enterprise infrastructure giveaway event')
+        .addStringOption(option => option.setName('prize').setDescription('What assets are being provisioned?').setRequired(true))
+        .addIntegerOption(option => option.setName('winners').setDescription('Total allocated selection slots').setRequired(true)),
 
-    // Moderation
     new SlashCommandBuilder()
         .setName('kick')
-        .setDescription('Kick a member out of the server')
-        .addUserOption(option => option.setName('target').setDescription('Member to kick').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for enforcement')),
+        .setDescription('Purge a disruptive threat boundary from the server')
+        .addUserOption(option => option.setName('target').setDescription('Target identity').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Operational justification documentation')),
 
     new SlashCommandBuilder()
         .setName('ban')
-        .setDescription('Ban a member permanently from the server')
-        .addUserOption(option => option.setName('target').setDescription('User to ban').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for enforcement')),
+        .setDescription('Blacklist an account matrix record permanently')
+        .addUserOption(option => option.setName('target').setDescription('Target identity').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Operational justification documentation')),
 
     new SlashCommandBuilder()
         .setName('clear')
-        .setDescription('Purge a specified volume of messages')
-        .addIntegerOption(option => option.setName('amount').setDescription('Volume of messages (1-100)').setRequired(true)),
+        .setDescription('Wipe linear chat database lines down to clean space')
+        .addIntegerOption(option => option.setName('amount').setDescription('Quantity index payload (1-100)').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('warn')
-        .setDescription('Issue a formal warning to a member')
-        .addUserOption(option => option.setName('target').setDescription('Target member').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for infraction').setRequired(true)),
+        .setDescription('Inject an architectural infraction mark against an account')
+        .addUserOption(option => option.setName('target').setDescription('Target user signature').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Infraction detailing').setRequired(true)),
 
-    // Utility
-    new SlashCommandBuilder().setName('serverinfo').setDescription('Fetch architectural metadata of this Discord guild'),
+    new SlashCommandBuilder()
+        .setName('warnings')
+        .setDescription('Retrieve historical infraction logging matrices for a specific user identity')
+        .addUserOption(option => option.setName('target').setDescription('Identify target').setRequired(true)),
+
+    new SlashCommandBuilder().setName('serverinfo').setDescription('Extract structural guild metadata indicators'),
+    
     new SlashCommandBuilder()
         .setName('userinfo')
-        .setDescription('Fetch comprehensive user account timeline data')
-        .addUserOption(option => option.setName('target').setDescription('Target user')),
+        .setDescription('Inspect chronological record history logs of a specific account')
+        .addUserOption(option => option.setName('target').setDescription('Target data payload')),
 
-    // Tickets
     new SlashCommandBuilder()
         .setName('setup-tickets')
-        .setDescription('Initialize Claudie’s interactive support system panel')
+        .setDescription('Inject an enterprise button-driven support gateway system panel')
+        .addChannelOption(option => option.setName('logging-channel').setDescription('Target channel for ticket audits').setRequired(true))
 ];
 
-//  register commands
+// \\ register commands
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-async function registerCommands() {
+async function deployMatrixCommands() {
     try {
-        console.log("⏳ Initializing Slash Commands sync...");
-        await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: commands }
-        );
-        console.log("✅ Application (/) commands successfully cached locally.");
-    } catch (error) {
-        console.error("❌ Fatal error deploying application commands:", error);
+        console.log("⚡ Synchronizing deployment modules to Discord REST highway...");
+        await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+        console.log("🏆 Integration verified. Slash architecture cached successfully.");
+    } catch (err) {
+        console.error("⛔ Command synchronization matrix initialization failed:", err);
     }
 }
 
-//  ready
+// \\ ready
 client.once('ready', () => {
-    console.log(`🌸 Claudie operational. Logged in securely as ${client.user.tag}`);
-    client.user.setActivity('over NexoCloud Security', { type: 3 });
+    console.log(`🌸 Claudie: ${client.user.tag}`);
+    client.user.setPresence({
+        activities: [{ name: 'Claudie | System Bot', type: 3 }],
+        status: 'dnd'
+    });
 });
 
-//  automod
+// \\ automod
+const messageTracker = new Map();
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    const matchedTrigger = BANNED_WORDS.some(word => message.content.toLowerCase().includes(word));
-    
-    if (matchedTrigger) {
-        await message.delete().catch(err => console.error("Could not intercept message:", err));
-        
-        const autoWarning = await message.channel.send(`⚠️ ${message.author}, malicious or blacklisted phrases are prohibited. This incident has been logged.`);
-        setTimeout(() => autoWarning.delete().catch(() => null), 5000);
+    const contentLower = message.content.toLowerCase();
+    const triggerWordMatch = BANNED_WORDS.some(word => contentLower.includes(word));
+    const maliciousLinkMatch = LINK_REGEX.test(message.content) && (contentLower.includes('gift') || contentLower.includes('nitro'));
 
-        const logChannel = message.guild.channels.cache.find(c => c.name === 'mod-logs');
-        if (logChannel) {
-            const safetyLog = new EmbedBuilder()
-                .setTitle('🛡️ Automod Enforcement triggered')
+    if (triggerWordMatch || maliciousLinkMatch) {
+        await message.delete().catch(() => null);
+        const autoWarning = await message.channel.send(`🚨 **Security Infraction:** ${message.author}, your recent broadcast violated threat matrix protocols. Action logged.`);
+        setTimeout(() => autoWarning.delete().catch(() => null), 6000);
+
+        const auditChannel = message.guild.channels.cache.find(c => c.name === 'mod-logs');
+        if (auditChannel) {
+            const securityEmbed = new EmbedBuilder()
+                .setTitle('🛡️ Automated Firewall Intercept')
                 .setColor('#FF3B30')
                 .addFields(
-                    { name: 'Offender', value: `${message.author.tag} (\`${message.author.id}\`)` },
-                    { name: 'Intercepted Content', value: `\`\`\`${message.content}\`\`\`` }
+                    { name: 'Identity Account', value: `${message.author.tag} (\`${message.author.id}\`)`, inline: true },
+                    { name: 'Threat vector classification', value: triggerWordMatch ? 'Blacklisted Phrase Pattern' : 'Deceptive Token Scam Link', inline: true },
+                    { name: 'Intercepted String Trace', value: `\`\`\`${message.content.substring(0, 1012)}\`\`\`` }
                 )
                 .setTimestamp();
-            logChannel.send({ embeds: [safetyLog] });
+            auditChannel.send({ embeds: [securityEmbed] });
         }
     }
 });
 
-//  welcome
+// \\ welcome
 client.on('guildMemberAdd', async (member) => {
-    const initialRole = member.guild.roles.cache.get(START_ROLE_ID);
-    if (initialRole) {
-        await member.roles.add(initialRole).catch(err => console.error("Role synchronization failure:", err));
+    const defaultRole = member.guild.roles.cache.get(START_ROLE_ID);
+    if (defaultRole) {
+        await member.roles.add(defaultRole).catch(e => console.error("Auto-role processing error:", e));
     }
 
-    const greetingChannel = member.guild.channels.cache.find(c => c.name === 'welcome');
-    if (!greetingChannel) return;
+    const entranceChannel = member.guild.channels.cache.find(c => c.name === 'welcome');
+    if (!entranceChannel) return;
 
-    const welcomeEmbed = new EmbedBuilder()
-        .setTitle('🌸 Welcome to NexoCloud!')
+    const presentationEmbed = new EmbedBuilder()
+        .setTitle('🌸 Node Entry Confirmed')
+        .setDescription(`Greetings ${member}, you have crossed boundaries into **${member.guild.name}**.\n\nOur system parameters require adherence to the protocol frameworks. Have an excellent integration.`)
         .setColor('#5865F2')
-        .setDescription(`Hello ${member}, welcome to our professional environment!\n\nYour presence drops you into a space built for innovation. Browse through our channels, follow guidelines, and connect.`)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-        .addFields({ name: 'Member Position', value: `#${member.guild.memberCount}`, inline: true })
+        .addFields(
+            { name: 'Assigned Index Position', value: `\`#${member.guild.memberCount}\``, inline: true },
+            { name: 'Security Clear Level', value: defaultRole ? `${defaultRole}` : 'None Assigned', inline: true }
+        )
         .setTimestamp()
-        .setFooter({ text: 'Claudie Core Operations', iconURL: client.user.displayAvatarURL() });
+        .setFooter({ text: 'Claudie Automated Access Management', iconURL: client.user.displayAvatarURL() });
 
-    greetingChannel.send({ embeds: [welcomeEmbed] });
+    entranceChannel.send({ embeds: [presentationEmbed] });
 });
 
-//  tickets
+// \\ tickets
 client.on('interactionCreate', async (interaction) => {
-    if (interaction.isChatInputCommand()) return; 
+    if (interaction.isChatInputCommand()) return;
 
-    if (interaction.customId === 'create_ticket') {
+    const db = readDB();
+
+    if (interaction.customId === 'gate_initialize_ticket') {
         await interaction.deferReply({ ephemeral: true });
 
-        const subchannelName = `ticket-${interaction.user.username}`;
-        const activeCheck = interaction.guild.channels.cache.find(c => c.name === subchannelName.toLowerCase());
-        
-        if (activeCheck) {
-            return interaction.editReply({ content: `❌ Verification failed. You already have an initialized support session pending here: ${activeCheck}` });
-        }
+        const ticketIndex = db.ticket_count + 1;
+        const channelIdentifier = `ticket-${String(ticketIndex).padStart(4, '0')}`;
 
-        const supportChannel = await interaction.guild.channels.create({
-            name: subchannelName,
+        // Create specialized overhead permissions for support staff
+        const internalSupportChannel = await interaction.guild.channels.create({
+            name: channelIdentifier,
             type: ChannelType.GuildText,
             permissionOverwrites: [
-                {
-                    id: interaction.guild.id,
-                    deny: [PermissionFlagsBits.ViewChannel], 
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                }
-            ],
+                { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
+            ]
         });
 
-        const onboardingEmbed = new EmbedBuilder()
-            .setTitle(`🎫 Support Docket initialized | ${interaction.user.username}`)
-            .setDescription('Staff dispatch notifications completed. Please lay out your parameters or business queries transparently below.')
-            .setColor('#1C1C1E')
+        db.ticket_count = ticketIndex;
+        writeDB(db);
+
+        const internalInterfaceEmbed = new EmbedBuilder()
+            .setTitle(`🎫 Communications Node: ${channelIdentifier}`)
+            .setDescription(`System opened by request parameter of ${interaction.user}.\n\nPlease drop your structural issues and configuration requests down below. Management has been notified.`)
+            .setColor('#34C759')
+            .addFields(
+                { name: 'Issuer Account ID', value: `\`${interaction.user.id}\``, inline: true },
+                { name: 'Node Priority Level', value: '🟢 Standard System Inquiry', inline: true }
+            )
             .setTimestamp();
 
-        const closeActionRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('close_ticket')
-                .setLabel('Terminate Session')
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji('🔒')
+        const functionRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('gate_terminate_ticket').setLabel('Close Stream').setStyle(ButtonStyle.Danger).setEmoji('🔒')
         );
 
-        await supportChannel.send({ embeds: [onboardingEmbed], components: [closeActionRow] });
-        return interaction.editReply({ content: `✅ Ticket initialization successful. Proceed here: ${supportChannel}` });
+        await internalSupportChannel.send({ embeds: [internalInterfaceEmbed], components: [functionRow] });
+        
+        // Push configuration record to setup logging stream if available
+        const logChannelId = db.guilds[interaction.guild.id]?.ticket_logs;
+        const logChannel = interaction.guild.channels.cache.get(logChannelId);
+        if (logChannel) {
+            const auditTicketLog = new EmbedBuilder()
+                .setTitle('📥 Communication Pipeline Formed')
+                .setColor('#34C759')
+                .addFields(
+                    { name: 'Ticket Channel', value: `${internalSupportChannel}`, inline: true },
+                    { name: 'Originator Identity', value: `${interaction.user.tag}`, inline: true }
+                )
+                .setTimestamp();
+            logChannel.send({ embeds: [auditTicketLog] });
+        }
+
+        return interaction.editReply({ content: `✅ Dynamic secure routing pipeline assembled: ${internalSupportChannel}` });
     }
 
-    if (interaction.customId === 'close_ticket') {
-        await interaction.reply({ content: '🔒 Session lifecycle end sequence initialized. Purging channel records in 5 seconds...' });
+    if (interaction.customId === 'gate_terminate_ticket') {
+        await interaction.reply({ content: '⚠️ **De-authorization Phase Initiated.** Wiping channel data blocks and purging channel records in 5 seconds...' });
+        
+        const logChannelId = db.guilds[interaction.guild.id]?.ticket_logs;
+        const logChannel = interaction.guild.channels.cache.get(logChannelId);
+        if (logChannel) {
+            const auditTicketCloseLog = new EmbedBuilder()
+                .setTitle('📤 Communication Pipeline Terminated')
+                .setColor('#FF3B30')
+                .setDescription(`Channel index context: \`${interaction.channel.name}\` was flagged terminated.`)
+                .addFields({ name: 'Enforcing Identity', value: `${interaction.user.tag}`, inline: true })
+                .setTimestamp();
+            logChannel.send({ embeds: [auditTicketCloseLog] });
+        }
+
         setTimeout(async () => {
             await interaction.channel.delete().catch(() => null);
         }, 5000);
     }
 });
 
-//  command handler
+// \\ command handler
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     const cmd = interaction.commandName;
+    const db = readDB();
 
-    const pushModLog = (guild, executionType, target, officer, summary) => {
-        const auditLogChannel = guild.channels.cache.find(c => c.name === 'mod-logs');
-        if (!auditLogChannel) return;
+    const pushCentralAuditLog = (guild, operation, subject, actor, messageSummary) => {
+        const auditRoute = guild.channels.cache.find(c => c.name === 'mod-logs');
+        if (!auditRoute) return;
 
-        const structuralLog = new EmbedBuilder()
-            .setTitle(`🛠️ System Action: ${executionType}`)
-            .setColor(executionType === 'BAN' ? '#FF3B30' : '#FF9500')
+        const analyticalEmbed = new EmbedBuilder()
+            .setTitle(`🛡️ Core Execution Log: ${operation}`)
+            .setColor(operation === 'BAN' ? '#FF3B30' : '#FF9500')
             .addFields(
-                { name: 'Target Account', value: `${target.tag || target.user.tag} (\`${target.id}\`)`, inline: true },
-                { name: 'Enforcing Officer', value: `${officer.tag}`, inline: true },
-                { name: 'Reason provided', value: summary || 'No context registered' }
+                { name: 'Subject User Element', value: `${subject.tag || subject.user.tag} (\`${subject.id}\`)`, inline: true },
+                { name: 'Authorizing Official', value: `${actor.tag}`, inline: true },
+                { name: 'System Justification Entry', value: messageSummary || 'No technical notes logged' }
             )
             .setTimestamp();
-        auditLogChannel.send({ embeds: [structuralLog] });
+        auditRoute.send({ embeds: [analyticalEmbed] });
     };
 
     try {
-        if (cmd === 'status') return interaction.reply("🟢 Diagnostics Complete: Core dependencies stable. Claudie framework optimized.");
+        if (cmd === 'status') {
+            const performanceEmbed = new EmbedBuilder()
+                .setTitle('📊 Architectural Diagnostics System')
+                .setColor('#007AFF')
+                .addFields(
+                    { name: 'Network Pipeline Latency', value: `\`${Math.round(client.ws.ping)}ms\``, inline: true },
+                    { name: 'Memory Array Index Load', value: `\`${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB\``, inline: true },
+                    { name: 'Node Engine Engine Envir.', value: `\`Node ${process.version}\``, inline: true }
+                )
+                .setTimestamp();
+            return interaction.reply({ embeds: [performanceEmbed] });
+        }
 
         if (cmd === 'giveaway') {
-            const promotionalEmbed = new EmbedBuilder()
-                .setTitle("🎉 LIVE INSIGNIA GIVEAWAY")
-                .setDescription("Interact with the 🎉 mechanism below to cast your application slot into the matrix.")
-                .setColor('#FFD700');
-            const promotionalMsg = await interaction.reply({ embeds: [promotionalEmbed], fetchReply: true });
-            promotionalMsg.react("🎉");
+            const rewardName = interaction.options.getString('prize');
+            const slotsAllocated = interaction.options.getInteger('winners');
+
+            const deploymentEmbed = new EmbedBuilder()
+                .setTitle('🎉 ENTERPRISE RESOURCE DISPATCH EVENT')
+                .setDescription(`A promotional event matrix has been opened.\n\n🎁 **Asset Prize:** \`${rewardName}\`\n👥 **Allocated Winner Slots:** \`${slotsAllocated}\``)
+                .setColor('#FFD700')
+                .setFooter({ text: 'Interact using the expression below to drop entry matrix.' })
+                .setTimestamp();
+
+            const promptMessage = await interaction.reply({ embeds: [deploymentEmbed], fetchReply: true });
+            await promptMessage.react('🎉');
+
+            db.giveaways.push({
+                messageId: promptMessage.id,
+                channelId: interaction.channel.id,
+                prize: rewardName,
+                winnersCount: slotsAllocated
+            });
+            writeDB(db);
             return;
         }
 
         if (cmd === 'setup-tickets') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                return interaction.reply({ content: "❌ Command execution terminated. Administrative authentication required.", ephemeral: true });
+                return interaction.reply({ content: '⛔ System Access Core Violation. Administrative validation matrix required.', ephemeral: true });
             }
 
-            const dispatchEmbed = new EmbedBuilder()
-                .setTitle('🎫 Core Support Hub')
-                .setDescription('Encountering configuration constraints? Initialize an encrypted chat stream with Claudie Operations by deploying the interaction panel below.')
-                .setColor('#5865F2');
+            const targetLogChannel = interaction.options.getChannel('logging-channel');
+            
+            if (!db.guilds[interaction.guild.id]) db.guilds[interaction.guild.id] = {};
+            db.guilds[interaction.guild.id].ticket_logs = targetLogChannel.id;
+            writeDB(db);
 
-            const interfaceRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket')
-                    .setLabel('Initialize Ticket')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📩')
+            const displayHubPanel = new EmbedBuilder()
+                .setTitle('🎫 Secure Systems Routing Terminal')
+                .setDescription('Need direct communication pathways with infrastructure administration? Deploy a protected message node sequence down below.')
+                .setColor('#007AFF')
+                .setFooter({ text: 'Claudie Communications Controller' });
+
+            const structuralButtonRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('gate_initialize_ticket').setLabel('Provision New Pipeline Channel').setStyle(ButtonStyle.Primary).setEmoji('📩')
             );
 
-            await interaction.reply({ content: '✅ Interactive portal successfully deployed.', ephemeral: true });
-            return interaction.channel.send({ embeds: [dispatchEmbed], components: [interfaceRow] });
+            await interaction.reply({ content: '✅ Dynamic Interface System deployed securely.', ephemeral: true });
+            return interaction.channel.send({ embeds: [displayHubPanel], components: [structuralButtonRow] });
         }
 
         if (cmd === 'kick') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
-                return interaction.reply({ content: "❌ Authentication denied. Insufficient operational rights.", ephemeral: true });
+                return interaction.reply({ content: '⛔ Enforcement operational permissions validation rejected.', ephemeral: true });
             }
             const target = interaction.options.getMember('target');
-            const reason = interaction.options.getString('reason') || 'No context registered';
+            const explanation = interaction.options.getString('reason') || 'No technical notes logged';
 
-            if (!target.kickable) return interaction.reply({ content: "❌ Operation rejected. Target maintains hierarchy protection.", ephemeral: true });
-            
-            await target.kick(reason);
-            pushModLog(interaction.guild, 'KICK', target, interaction.user, reason);
-            return interaction.reply({ content: `✅ **${target.user.tag}** has been removed from the server environment.`, ephemeral: true });
+            if (!target.kickable) return interaction.reply({ content: '⛔ Target entity contains hierarchy system bypass. Force ejection failed.', ephemeral: true });
+
+            await target.kick(explanation);
+            pushCentralAuditLog(interaction.guild, 'KICK', target, interaction.user, explanation);
+            return interaction.reply({ content: `✅ Force eviction complete: **${target.user.tag}** extracted from grid maps.`, ephemeral: true });
         }
 
         if (cmd === 'ban') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
-                return interaction.reply({ content: "❌ Authentication denied. Insufficient operational rights.", ephemeral: true });
+                return interaction.reply({ content: '⛔ Enforcement operational permissions validation rejected.', ephemeral: true });
             }
             const target = interaction.options.getUser('target');
-            const reason = interaction.options.getString('reason') || 'No context registered';
+            const explanation = interaction.options.getString('reason') || 'No technical notes logged';
 
-            await interaction.guild.members.ban(target, { reason: reason });
-            pushModLog(interaction.guild, 'BAN', target, interaction.user, reason);
-            return interaction.reply({ content: `⛔ **${target.tag}** is permanently barred from accessing this guild.`, ephemeral: true });
+            await interaction.guild.members.ban(target, { reason: explanation });
+            pushCentralAuditLog(interaction.guild, 'BAN', target, interaction.user, explanation);
+            return interaction.reply({ content: `⛔ Hard permanent trace blacklist successfully cast over **${target.tag}**.`, ephemeral: true });
         }
 
         if (cmd === 'clear') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-                return interaction.reply({ content: "❌ Authentication denied. Insufficient operational rights.", ephemeral: true });
+                return interaction.reply({ content: '⛔ Operational permissions validation rejected.', ephemeral: true });
             }
-            const volume = interaction.options.getInteger('amount');
-            if (volume < 1 || volume > 100) return interaction.reply({ content: "❌ Execution boundaries violated. Enter integers scaling 1-100.", ephemeral: true });
+            const volumeIndex = interaction.options.getInteger('amount');
+            if (volumeIndex < 1 || volumeIndex > 100) return interaction.reply({ content: '⛔ Processing error. Bounds limited strictly within 1 to 100 rows.', ephemeral: true });
 
-            await interaction.channel.bulkDelete(volume, true);
-            return interaction.reply({ content: `🧹 Data purge complete. Eliminated **${volume}** message lines.`, ephemeral: true });
+            await interaction.channel.bulkDelete(volumeIndex, true);
+            return interaction.reply({ content: `🧹 Transaction lines erased. Linear log blocks dropped: \`${volumeIndex}\`.`, ephemeral: true });
         }
 
         if (cmd === 'warn') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-                return interaction.reply({ content: "❌ Authentication denied. Insufficient operational rights.", ephemeral: true });
+                return interaction.reply({ content: '⛔ Operational permissions validation rejected.', ephemeral: true });
             }
             const target = interaction.options.getUser('target');
-            const reason = interaction.options.getString('reason');
+            const explanation = interaction.options.getString('reason');
 
-            await target.send(`⚠️ An official infraction warning has been filed under your handle on **${interaction.guild.name}**.\nReason provided: ${reason}`).catch(() => null);
-            
-            pushModLog(interaction.guild, 'WARN', target, interaction.user, reason);
-            return interaction.reply({ content: `⚠️ **${target.tag}** has been formally warned. Incident captured.`, ephemeral: true });
+            if (!db.warnings[target.id]) db.warnings[target.id] = [];
+            db.warnings[target.id].push({
+                moderator: interaction.user.tag,
+                reason: explanation,
+                timestamp: new Date().toISOString()
+            });
+            writeDB(db);
+
+            await target.send(`⚠️ **Infraction System Warning Registered:** You received an official log entry file mark inside **${interaction.guild.name}**.\nContext justification: *${explanation}*`).catch(() => null);
+
+            pushCentralAuditLog(interaction.guild, 'WARN', target, interaction.user, explanation);
+            return interaction.reply({ content: `⚠️ Infraction log record linked successfully against account handle: **${target.tag}**.`, ephemeral: true });
+        }
+
+        if (cmd === 'warnings') {
+            const target = interaction.options.getUser('target');
+            const recordLogs = db.warnings[target.id] || [];
+
+            if (recordLogs.length === 0) {
+                return interaction.reply({ content: `✨ Profile structure for user: **${target.tag}** is fully optimal. Clean index history record.` });
+            }
+
+            const recordEmbed = new EmbedBuilder()
+                .setTitle(`📋 Historic Audit File Log: ${target.tag}`)
+                .setColor('#FF9500')
+                .setDescription(recordLogs.map((warn, index) => `**[Entry #${index + 1}]**\nOfficer: \`${warn.moderator}\`\nReasoning: \`${warn.reason}\`\nFiled: <t:${Math.floor(new Date(warn.timestamp).getTime() / 1000)}:R>`).join('\n\n'));
+
+            return interaction.reply({ embeds: [recordEmbed] });
         }
 
         if (cmd === 'serverinfo') {
             const { guild } = interaction;
-            const architecturalEmbed = new EmbedBuilder()
-                .setTitle(`📊 System Profile: ${guild.name}`)
-                .setColor('#5865F2')
+            const detailEmbed = new EmbedBuilder()
+                .setTitle(`📊 System Diagnostics Metric Map: ${guild.name}`)
                 .setThumbnail(guild.iconURL())
+                .setColor('#5865F2')
                 .addFields(
-                    { name: 'Root Administrator', value: `<@${guild.ownerId}>`, inline: true },
-                    { name: 'User Matrix Cap', value: `${guild.memberCount}`, inline: true },
-                    { name: 'Chronology Genesis', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`, inline: true }
+                    { name: 'Root Infrastructure Owner', value: `<@${guild.ownerId}>`, inline: true },
+                    { name: 'Active Node Identities Count', value: `\`${guild.memberCount}\``, inline: true },
+                    { name: 'Creation Synchronization Stamp', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`, inline: false }
                 );
-            return interaction.reply({ embeds: [architecturalEmbed] });
+            return interaction.reply({ embeds: [detailEmbed] });
         }
 
         if (cmd === 'userinfo') {
-            const account = interaction.options.getUser('target') || interaction.user;
-            const contextMember = await interaction.guild.members.fetch(account.id);
-            
-            const profileEmbed = new EmbedBuilder()
-                .setTitle(`👤 Object Metadata: ${account.tag}`)
+            const targetUser = interaction.options.getUser('target') || interaction.user;
+            const targetMember = await interaction.guild.members.fetch(targetUser.id);
+
+            const technicalUserEmbed = new EmbedBuilder()
+                .setTitle(`👤 Structural Account Analysis: ${targetUser.tag}`)
+                .setThumbnail(targetUser.displayAvatarURL())
                 .setColor('#5865F2')
-                .setThumbnail(account.displayAvatarURL())
                 .addFields(
-                    { name: 'Account ID String', value: `\`${account.id}\``, inline: true },
-                    { name: 'Genesis Stamp', value: `<t:${Math.floor(account.createdTimestamp / 1000)}:R>`, inline: true },
-                    { name: 'Guild Join Vector', value: `<t:${Math.floor(contextMember.joinedTimestamp / 1000)}:R>`, inline: true }
+                    { name: 'System Identification Value', value: `\`${targetUser.id}\``, inline: true },
+                    { name: 'Platform Creation Timeline', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true },
+                    { name: 'Guild Matrix Join Timestamp', value: `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:R>`, inline: true }
                 );
-            return interaction.reply({ embeds: [profileEmbed] });
+            return interaction.reply({ embeds: [technicalUserEmbed] });
         }
 
     } catch (err) {
-        console.error("Runtime exception handled:", err);
-        return interaction.reply({ content: "❌ Command execution collapsed due to internal environment faults.", ephemeral: true });
+        console.error("Critical matrix execution fault caught:", err);
+        if (interaction.replied || interaction.deferred) {
+            return interaction.followUp({ content: '❌ System internal process engine error encountered while compiling output arrays.', ephemeral: true });
+        } else {
+            return interaction.reply({ content: '❌ System internal process engine error encountered while compiling output arrays.', ephemeral: true });
+        }
     }
 });
 
-//  start
-registerCommands().then(() => client.login(TOKEN));
+// \\ start execution loop
+deployMatrixCommands().then(() => client.login(TOKEN));
