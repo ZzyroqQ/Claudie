@@ -105,7 +105,12 @@ const commands = [
     new SlashCommandBuilder()
         .setName('setup-tickets')
         .setDescription('Inject an enterprise button-driven support gateway system panel')
-        .addChannelOption(option => option.setName('logging-channel').setDescription('Target channel for ticket audits').setRequired(true))
+        .addChannelOption(option => option.setName('logging-channel').setDescription('Target channel for ticket audits').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('dmall')
+        .setDescription('Send Direct Message to everyone here')
+        .addStringOption(option => option.setName('message').setDescription('Target Message For Members').setRequired(true))
 ];
 
 // \\ register commands
@@ -172,7 +177,7 @@ client.on('guildMemberAdd', async (member) => {
     const presentationEmbed = new EmbedBuilder()
         .setTitle('🌸 Node Entry Confirmed')
         .setDescription(`Greetings ${member}, you have crossed boundaries into **${member.guild.name}**.\n\nOur system parameters require adherence to the protocol frameworks. Have an excellent integration.`)
-        .setColor('#5865F2')
+        .setColor('#FF3B30')
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .addFields(
             { name: 'Assigned Index Position', value: `\`#${member.guild.memberCount}\``, inline: true },
@@ -189,6 +194,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isChatInputCommand()) return;
 
     const db = readDB();
+    const serverIcon = interaction.guild.iconURL({ dynamic: true });
 
     if (interaction.customId === 'gate_initialize_ticket') {
         await interaction.deferReply({ ephemeral: true });
@@ -196,7 +202,6 @@ client.on('interactionCreate', async (interaction) => {
         const ticketIndex = db.ticket_count + 1;
         const channelIdentifier = `ticket-${String(ticketIndex).padStart(4, '0')}`;
 
-        // Create specialized overhead permissions for support staff
         const internalSupportChannel = await interaction.guild.channels.create({
             name: channelIdentifier,
             type: ChannelType.GuildText,
@@ -209,13 +214,10 @@ client.on('interactionCreate', async (interaction) => {
         db.ticket_count = ticketIndex;
         writeDB(db);
 
-        // Získání URL loga serveru
-        const serverIcon = interaction.guild.iconURL({ dynamic: true });
-
         const internalInterfaceEmbed = new EmbedBuilder()
             .setTitle(`🎫 Communications Node: ${channelIdentifier}`)
             .setDescription(`System opened by request parameter of ${interaction.user}.\n\nPlease drop your structural issues and configuration requests down below. Management has been notified.`)
-            .setColor('#34C759')
+            .setColor('#FF3B30')
             .setThumbnail(serverIcon) 
             .addFields(
                 { name: 'Issuer Account ID', value: `\`${interaction.user.id}\``, inline: true },
@@ -229,14 +231,13 @@ client.on('interactionCreate', async (interaction) => {
 
         await internalSupportChannel.send({ embeds: [internalInterfaceEmbed], components: [functionRow] });
         
-        // Push configuration record to setup logging stream if available
         const logChannelId = db.guilds[interaction.guild.id]?.ticket_logs;
         const logChannel = interaction.guild.channels.cache.get(logChannelId);
         if (logChannel) {
             const auditTicketLog = new EmbedBuilder()
                 .setTitle('📥 Communication Pipeline Formed')
-                .setColor('#34C759')
-                .setThumbnail(serverIcon) // ZDE: Přidáno logo serveru také do logů o otevření ticketu
+                .setColor('#FF3B30')
+                .setThumbnail(serverIcon) 
                 .addFields(
                     { name: 'Ticket Channel', value: `${internalSupportChannel}`, inline: true },
                     { name: 'Originator Identity', value: `${interaction.user.tag}`, inline: true }
@@ -257,7 +258,7 @@ client.on('interactionCreate', async (interaction) => {
             const auditTicketCloseLog = new EmbedBuilder()
                 .setTitle('📤 Communication Pipeline Terminated')
                 .setColor('#FF3B30')
-                .setThumbnail(interaction.guild.iconURL({ dynamic: true })) // ZDE: Přidáno logo serveru do logů o zavření ticketu
+                .setThumbnail(serverIcon) 
                 .setDescription(`Channel index context: \`${interaction.channel.name}\` was flagged terminated.`)
                 .addFields({ name: 'Enforcing Identity', value: `${interaction.user.tag}`, inline: true })
                 .setTimestamp();
@@ -276,6 +277,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const cmd = interaction.commandName;
     const db = readDB();
+    const serverIcon = interaction.guild?.iconURL({ dynamic: true }) || null;
 
     const pushCentralAuditLog = (guild, operation, subject, actor, messageSummary) => {
         const auditRoute = guild.channels.cache.find(c => c.name === 'mod-logs');
@@ -283,13 +285,15 @@ client.on('interactionCreate', async (interaction) => {
 
         const analyticalEmbed = new EmbedBuilder()
             .setTitle(`🛡️ Core Execution Log: ${operation}`)
-            .setColor(operation === 'BAN' ? '#FF3B30' : '#FF9500')
+            .setColor('#FF3B30')
             .addFields(
-                { name: 'Subject User Element', value: `${subject.tag || subject.user.tag} (\`${subject.id}\`)`, inline: true },
+                { name: 'Subject User Element', value: `${subject.tag || subject.user?.tag || subject.id} (\`${subject.id}\`)`, inline: true },
                 { name: 'Authorizing Official', value: `${actor.tag}`, inline: true },
                 { name: 'System Justification Entry', value: messageSummary || 'No technical notes logged' }
             )
-            .setTimestamp();
+            .setTimestamp()
+            .setThumbnail(serverIcon);
+
         auditRoute.send({ embeds: [analyticalEmbed] });
     };
 
@@ -297,11 +301,11 @@ client.on('interactionCreate', async (interaction) => {
         if (cmd === 'status') {
             const performanceEmbed = new EmbedBuilder()
                 .setTitle('📊 Architectural Diagnostics System')
-                .setColor('#007AFF')
+                .setColor('#FF3B30')
                 .addFields(
                     { name: 'Network Pipeline Latency', value: `\`${Math.round(client.ws.ping)}ms\``, inline: true },
                     { name: 'Memory Array Index Load', value: `\`${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB\``, inline: true },
-                    { name: 'Node Engine Engine Envir.', value: `\`Node ${process.version}\``, inline: true }
+                    { name: 'Node Engine Envir.', value: `\`Node ${process.version}\``, inline: true }
                 )
                 .setTimestamp();
             return interaction.reply({ embeds: [performanceEmbed] });
@@ -314,7 +318,7 @@ client.on('interactionCreate', async (interaction) => {
             const deploymentEmbed = new EmbedBuilder()
                 .setTitle('🎉 ENTERPRISE RESOURCE DISPATCH EVENT')
                 .setDescription(`A promotional event matrix has been opened.\n\n🎁 **Asset Prize:** \`${rewardName}\`\n👥 **Allocated Winner Slots:** \`${slotsAllocated}\``)
-                .setColor('#FFD700')
+                .setColor('#FF3B30')
                 .setFooter({ text: 'Interact using the expression below to drop entry matrix.' })
                 .setTimestamp();
 
@@ -345,8 +349,9 @@ client.on('interactionCreate', async (interaction) => {
             const displayHubPanel = new EmbedBuilder()
                 .setTitle('🎫 Secure Systems Routing Terminal')
                 .setDescription('Need direct communication pathways with infrastructure administration? Deploy a protected message node sequence down below.')
-                .setColor('#007AFF')
-                .setFooter({ text: 'Claudie Communications Controller' });
+                .setColor('#FF3B30')
+                .setFooter({ text: 'Claudie Communications Controller' })
+                .setThumbnail(serverIcon);
 
             const structuralButtonRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('gate_initialize_ticket').setLabel('Provision New Pipeline Channel').setStyle(ButtonStyle.Primary).setEmoji('📩')
@@ -435,7 +440,7 @@ client.on('interactionCreate', async (interaction) => {
             const detailEmbed = new EmbedBuilder()
                 .setTitle(`📊 System Diagnostics Metric Map: ${guild.name}`)
                 .setThumbnail(guild.iconURL())
-                .setColor('#5865F2')
+                .setColor('#FF3B30')
                 .addFields(
                     { name: 'Root Infrastructure Owner', value: `<@${guild.ownerId}>`, inline: true },
                     { name: 'Active Node Identities Count', value: `\`${guild.memberCount}\``, inline: true },
@@ -451,13 +456,56 @@ client.on('interactionCreate', async (interaction) => {
             const technicalUserEmbed = new EmbedBuilder()
                 .setTitle(`👤 Structural Account Analysis: ${targetUser.tag}`)
                 .setThumbnail(targetUser.displayAvatarURL())
-                .setColor('#5865F2')
+                .setColor('#FF3B30')
                 .addFields(
                     { name: 'System Identification Value', value: `\`${targetUser.id}\``, inline: true },
                     { name: 'Platform Creation Timeline', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true },
                     { name: 'Guild Matrix Join Timestamp', value: `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:R>`, inline: true }
                 );
             return interaction.reply({ embeds: [technicalUserEmbed] });
+        }
+
+        // \\ DM ALL COMMAND EXECUTION
+        if (cmd === 'dmall') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ content: '⛔ System Access Core Violation. Administrative validation matrix required.', ephemeral: true });
+            }
+
+            const broadcastMessage = interaction.options.getString('message');
+            
+            // Defer reply because fetching and messaging all members can take longer than 3 seconds
+            await interaction.deferReply({ ephemeral: true });
+
+            const members = await interaction.guild.members.fetch();
+            let successCount = 0;
+            let failureCount = 0;
+
+            for (const [id, member] of members) {
+                if (member.user.bot) continue;
+
+                try {
+                    await member.send({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setTitle(`📢 Broadcast Matrix Packet from ${interaction.guild.name}`)
+                                .setDescription(broadcastMessage)
+                                .setColor('#FF3B30')
+                                .setTimestamp()
+                        ]
+                    });
+                    successCount++;
+                } catch (err) {
+                    // Fails if user has DMs closed
+                    failureCount++;
+                }
+            }
+
+            // Log down into central audit log
+            pushCentralAuditLog(interaction.guild, 'DM_ALL', { id: 'GUILD_ALL', tag: 'All Guild Members' }, interaction.user, broadcastMessage);
+
+            return interaction.editReply({
+                content: `✅ **Broadcast Protocol Terminated.**\n📊 **Metrics:** successfully pushed to \`${successCount}\` identities. Errored/Blocked streams: \`${failureCount}\`.`
+            });
         }
 
     } catch (err) {
