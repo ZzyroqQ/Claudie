@@ -10,7 +10,9 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    ChannelType
+    ChannelType,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder
 } = require('discord.js');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -25,7 +27,7 @@ const DB_PATH = path.join(__dirname, 'database.json');
 const LINK_REGEX = /(https?:\/\/[^\s]+)/g;
 const BANNED_WORDS = ['scam', 'nitro-free', 'discord.gg/fake-invite', 'free-nitro'];
 
-// \\ dynamic safety system storage (database manager)
+// \\ database manager
 function readDB() {
     try {
         if (!fs.existsSync(DB_PATH)) {
@@ -57,7 +59,7 @@ const client = new Client({
     ]
 });
 
-// \\ application slash layout commands
+// \\ slash commands deployment matrix
 const commands = [
     new SlashCommandBuilder().setName('status').setDescription('Perform rigorous structural system integrity checks'),
     
@@ -104,13 +106,30 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('setup-tickets')
-        .setDescription('Inject an enterprise button-driven support gateway system panel')
+        .setDescription('Inject an enterprise button/select support gateway system panel')
         .addChannelOption(option => option.setName('logging-channel').setDescription('Target channel for ticket audits').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('dmall')
         .setDescription('Send Direct Message to everyone here')
-        .addStringOption(option => option.setName('message').setDescription('Target Message For Members').setRequired(true))
+        .addStringOption(option => option.setName('message').setDescription('Target Message For Members').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('dmto')
+        .setDescription('Send Direct Message to a specific account entry')
+        .addUserOption(option => option.setName('target').setDescription('Target user identity').setRequired(true))
+        .addStringOption(option => option.setName('message').setDescription('The payload content string').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('announcement')
+        .setDescription('Deploy an automated official infrastructure notification broadcast')
+        .addStringOption(option => option.setName('message').setDescription('Announcement content').setRequired(true))
+        .addStringOption(option => option.setName('mention').setDescription('Ping configuration')
+            .addChoices(
+                { name: 'none', value: 'none' },
+                { name: 'everyone', value: 'everyone' },
+                { name: 'here', value: 'here' }
+            ).setRequired(true))
 ];
 
 // \\ register commands
@@ -135,7 +154,6 @@ client.once('ready', () => {
 });
 
 // \\ automod
-const messageTracker = new Map();
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -189,18 +207,24 @@ client.on('guildMemberAdd', async (member) => {
     entranceChannel.send({ embeds: [presentationEmbed] });
 });
 
-// \\ tickets
+// \\ enterprise ticket interactions engine
 client.on('interactionCreate', async (interaction) => {
-    if (interaction.isChatInputCommand()) return;
-
     const db = readDB();
-    const serverIcon = interaction.guild.iconURL({ dynamic: true });
+    const serverIcon = interaction.guild?.iconURL({ dynamic: true }) || null;
 
-    if (interaction.customId === 'gate_initialize_ticket') {
-        await interaction.deferReply({ ephemeral: true });
-
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_category_select') {
+        await interaction.deferReply({ flags: [ 'Ephemeral' ] });
+        
+        const categorySelection = interaction.values[0];
         const ticketIndex = db.ticket_count + 1;
-        const channelIdentifier = `ticket-${String(ticketIndex).padStart(4, '0')}`;
+        
+        let prefix = "ticket";
+        let titleName = "🔴 System Support Query";
+        if (categorySelection === 'tech') { prefix = "tech"; titleName = "⚙️ Technical Matrix Support"; }
+        if (categorySelection === 'report') { prefix = "report"; titleName = "🔏 Subject Violation Report"; }
+        if (categorySelection === 'billing') { prefix = "billing"; titleName = "💼 Management Inquiry"; }
+
+        const channelIdentifier = `${prefix}-${String(ticketIndex).padStart(4, '0')}`;
 
         const internalSupportChannel = await interaction.guild.channels.create({
             name: channelIdentifier,
@@ -216,53 +240,102 @@ client.on('interactionCreate', async (interaction) => {
 
         const internalInterfaceEmbed = new EmbedBuilder()
             .setTitle(`🎫 Communications Node: ${channelIdentifier}`)
-            .setDescription(`System opened by request parameter of ${interaction.user}.\n\nPlease drop your structural issues and configuration requests down below. Management has been notified.`)
+            .setDescription(`System opened by parameter logic of ${interaction.user}.\n\nCategory alignment: **${titleName}**\nPlease detail your engineering issue here. Our operational officials have been notified.`)
             .setColor('#FF3B30')
-            .setThumbnail(serverIcon) 
             .addFields(
                 { name: 'Issuer Account ID', value: `\`${interaction.user.id}\``, inline: true },
-                { name: 'Node Priority Level', value: '🟢 Standard System Inquiry', inline: true }
+                { name: 'Node Status Matrix', value: '🟢 Awaiting Administration Team Assignment', inline: true }
             )
             .setTimestamp();
+        if (serverIcon) internalInterfaceEmbed.setThumbnail(serverIcon);
 
         const functionRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('gate_claim_ticket').setLabel('Claim Node').setStyle(ButtonStyle.Success).setEmoji('🙋‍♂️'),
             new ButtonBuilder().setCustomId('gate_terminate_ticket').setLabel('Close Stream').setStyle(ButtonStyle.Danger).setEmoji('🔒')
         );
 
-        await internalSupportChannel.send({ embeds: [internalInterfaceEmbed], components: [functionRow] });
-        
+        await internalSupportChannel.send({ content: `${interaction.user} | Administration Grid Notification`, embeds: [internalInterfaceEmbed], components: [functionRow] });
+
         const logChannelId = db.guilds[interaction.guild.id]?.ticket_logs;
         const logChannel = interaction.guild.channels.cache.get(logChannelId);
         if (logChannel) {
             const auditTicketLog = new EmbedBuilder()
                 .setTitle('📥 Communication Pipeline Formed')
                 .setColor('#FF3B30')
-                .setThumbnail(serverIcon) 
                 .addFields(
                     { name: 'Ticket Channel', value: `${internalSupportChannel}`, inline: true },
-                    { name: 'Originator Identity', value: `${interaction.user.tag}`, inline: true }
+                    { name: 'Originator Identity', value: `${interaction.user.tag}`, inline: true },
+                    { name: 'Category Target Cluster', value: `\`${categorySelection.toUpperCase()}\``, inline: true }
                 )
                 .setTimestamp();
+            if (serverIcon) auditTicketLog.setThumbnail(serverIcon);
             logChannel.send({ embeds: [auditTicketLog] });
         }
 
         return interaction.editReply({ content: `✅ Dynamic secure routing pipeline assembled: ${internalSupportChannel}` });
     }
 
-    if (interaction.customId === 'gate_terminate_ticket') {
-        await interaction.reply({ content: '⚠️ **De-authorization Phase Initiated.** Wiping channel data blocks and purging channel records in 5 seconds...' });
+    if (!interaction.isButton()) return;
+
+    if (interaction.customId === 'gate_claim_ticket') {
+        const claimEmbed = EmbedBuilder.from(interaction.message.embeds[0]);
         
+        if (claimEmbed.data.fields.some(f => f.name === 'Assigned Official Component')) {
+            return interaction.reply({ content: '⛔ This routing node pipeline data matrix has already been claimed.', ephemeral: true });
+        }
+
+        claimEmbed.spliceFields(1, 1, { name: 'Node Status Matrix', value: `🟡 Handled by ${interaction.user}`, inline: true });
+        claimEmbed.addFields({ name: 'Assigned Official Component', value: `${interaction.user} (\`${interaction.user.id}\`)`, inline: true });
+
+        await interaction.channel.permissionOverwrites.edit(interaction.user.id, {
+            ViewChannel: true,
+            SendMessages: true,
+            ReadMessageHistory: true
+        });
+
+        await interaction.message.edit({ embeds: [claimEmbed] });
+        return interaction.reply({ content: `✅ You have taken operational priority block ownership over \`${interaction.channel.name}\`.` });
+    }
+
+    if (interaction.customId === 'gate_terminate_ticket') {
+        await interaction.reply({ content: '⚠️ **De-authorization Phase Initiated.** Wiping channel data blocks, running transcript pipeline backups and purging channel records in 5 seconds...' });
+        
+        const compiledMessages = await interaction.channel.messages.fetch({ limit: 100 });
+        let rawLogString = `=== TICKET NODE ARCHIVE CONTEXT DICTIONARY: ${interaction.channel.name} ===\n\n`;
+        
+        const reverseLayoutArray = Array.from(compiledMessages.values()).reverse();
+        reverseLayoutArray.forEach(m => {
+            rawLogString += `[${m.createdAt.toISOString()}] ID: ${m.author.id} | ${m.author.tag}: ${m.content}\n`;
+            if (m.embeds.length > 0) rawLogString += `>> [Embedded Array Element Present]\n`;
+        });
+
+        const dataBufferStream = Buffer.from(rawLogString, 'utf-8');
+
+        const creationMatchEmbed = interaction.message.embeds[0];
+        const extractedUserId = creationMatchEmbed?.fields[0]?.value.replace(/[^0-9]/g, '');
+        
+        if (extractedUserId) {
+            const matchedUser = await client.users.fetch(extractedUserId).catch(() => null);
+            if (matchedUser) {
+                await matchedUser.send({
+                    content: `🌸 **Secure System Storage Notification:** Communications node pipeline \`${interaction.channel.name}\` inside **${interaction.guild.name}** was closed successfully. Attached is your historical transcript payload data map.`,
+                    files: [{ attachment: dataBufferStream, name: `transcript-${interaction.channel.name}.txt` }]
+                }).catch(() => null);
+            }
+        }
+
         const logChannelId = db.guilds[interaction.guild.id]?.ticket_logs;
         const logChannel = interaction.guild.channels.cache.get(logChannelId);
         if (logChannel) {
             const auditTicketCloseLog = new EmbedBuilder()
                 .setTitle('📤 Communication Pipeline Terminated')
                 .setColor('#FF3B30')
-                .setThumbnail(serverIcon) 
-                .setDescription(`Channel index context: \`${interaction.channel.name}\` was flagged terminated.`)
+                .setDescription(`Channel index context: \`${interaction.channel.name}\` was flagged terminated. Log data array buffered successfully.`)
                 .addFields({ name: 'Enforcing Identity', value: `${interaction.user.tag}`, inline: true })
                 .setTimestamp();
-            logChannel.send({ embeds: [auditTicketCloseLog] });
+            if (serverIcon) auditTicketCloseLog.setThumbnail(serverIcon);
+            
+            logChannel.send({ embeds: [auditTicketCloseLog], files: [{ attachment: dataBufferStream, name: `audit-transcript-${interaction.channel.name}.txt` }] });
         }
 
         setTimeout(async () => {
@@ -271,7 +344,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// \\ command handler
+// \\ chat command core execution handler
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -287,12 +360,12 @@ client.on('interactionCreate', async (interaction) => {
             .setTitle(`🛡️ Core Execution Log: ${operation}`)
             .setColor('#FF3B30')
             .addFields(
-                { name: 'Subject User Element', value: `${subject.tag || subject.user?.tag || subject.id} (\`${subject.id}\`)`, inline: true },
+                { name: 'Subject User Element', value: `${subject.tag || subject.user?.tag || subject.id || 'N/A'} (\`${subject.id}\`)`, inline: true },
                 { name: 'Authorizing Official', value: `${actor.tag}`, inline: true },
                 { name: 'System Justification Entry', value: messageSummary || 'No technical notes logged' }
             )
-            .setTimestamp()
-            .setThumbnail(serverIcon);
+            .setTimestamp();
+        if (serverIcon) analyticalEmbed.setThumbnail(serverIcon);
 
         auditRoute.send({ embeds: [analyticalEmbed] });
     };
@@ -348,17 +421,25 @@ client.on('interactionCreate', async (interaction) => {
 
             const displayHubPanel = new EmbedBuilder()
                 .setTitle('🎫 Secure Systems Routing Terminal')
-                .setDescription('Need direct communication pathways with infrastructure administration? Deploy a protected message node sequence down below.')
+                .setDescription('Need direct communication pathways with infrastructure administration?\n\nSelect the structural operational category from the menu interface framework below to configure your channel line.')
                 .setColor('#FF3B30')
-                .setFooter({ text: 'Claudie Communications Controller' })
-                .setThumbnail(serverIcon);
+                .setFooter({ text: 'Claudie Communications Controller' });
+            if (serverIcon) displayHubPanel.setThumbnail(serverIcon);
 
-            const structuralButtonRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('gate_initialize_ticket').setLabel('Provision New Pipeline Channel').setStyle(ButtonStyle.Primary).setEmoji('📩')
-            );
+            const categorySelectorDropdown = new StringSelectMenuBuilder()
+                .setCustomId('ticket_category_select')
+                .setPlaceholder('Establish communication parameter selection...')
+                .addOptions(
+                    new StringSelectMenuOptionBuilder().setLabel('General Support').setValue('general').setDescription('Standard infrastructure inquiries').setEmoji('🎫'),
+                    new StringSelectMenuOptionBuilder().setLabel('Technical Assistance').setValue('tech').setDescription('Bug tracking and infrastructure errors').setEmoji('⚙️'),
+                    new StringSelectMenuOptionBuilder().setLabel('Report Violation').setValue('report').setDescription('Report user system parameter bypasses').setEmoji('🔏'),
+                    new StringSelectMenuOptionBuilder().setLabel('Management & Billing').setValue('billing').setDescription('Inquiries for executives').setEmoji('💼')
+                );
 
-            await interaction.reply({ content: '✅ Dynamic Interface System deployed securely.', ephemeral: true });
-            return interaction.channel.send({ embeds: [displayHubPanel], components: [structuralButtonRow] });
+            const selectionComponentRow = new ActionRowBuilder().addComponents(categorySelectorDropdown);
+
+            await interaction.reply({ content: '✅ Advanced Category Dropdown System deployed securely.', ephemeral: true });
+            return interaction.channel.send({ embeds: [displayHubPanel], components: [selectionComponentRow] });
         }
 
         if (cmd === 'kick') {
@@ -465,16 +546,13 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ embeds: [technicalUserEmbed] });
         }
 
-        // \\ DM ALL COMMAND EXECUTION
         if (cmd === 'dmall') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '⛔ System Access Core Violation. Administrative validation matrix required.', ephemeral: true });
             }
 
             const broadcastMessage = interaction.options.getString('message');
-            
-            // Defer reply because fetching and messaging all members can take longer than 3 seconds
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: [ 'Ephemeral' ] });
 
             const members = await interaction.guild.members.fetch();
             let successCount = 0;
@@ -487,7 +565,7 @@ client.on('interactionCreate', async (interaction) => {
                     await member.send({
                         embeds: [
                             new EmbedBuilder()
-                                .setTitle(`📢 Broadcast Matrix Packet from ${interaction.guild.name}`)
+                                .setTitle(`📢 Broadcast from ${interaction.guild.name}`)
                                 .setDescription(broadcastMessage)
                                 .setColor('#FF3B30')
                                 .setTimestamp()
@@ -495,12 +573,10 @@ client.on('interactionCreate', async (interaction) => {
                     });
                     successCount++;
                 } catch (err) {
-                    // Fails if user has DMs closed
                     failureCount++;
                 }
             }
 
-            // Log down into central audit log
             pushCentralAuditLog(interaction.guild, 'DM_ALL', { id: 'GUILD_ALL', tag: 'All Guild Members' }, interaction.user, broadcastMessage);
 
             return interaction.editReply({
@@ -508,12 +584,71 @@ client.on('interactionCreate', async (interaction) => {
             });
         }
 
+        if (cmd === 'dmto') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+                return interaction.reply({ content: '⛔ Enforcement operational permissions validation rejected.', ephemeral: true });
+            }
+
+            const targetUser = interaction.options.getUser('target');
+            const targetMessagePayload = interaction.options.getString('message');
+
+            await interaction.deferReply({ flags: [ 'Ephemeral' ] });
+
+            try {
+                await targetUser.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setTitle(`✉️ Administrator Message ${interaction.guild.name}`)
+                            .setDescription(targetMessagePayload)
+                            .setColor('#FF3B30')
+                            .setFooter({ text: `Authorized by Official: ${interaction.user.tag}` })
+                            .setTimestamp()
+                    ]
+                });
+
+                pushCentralAuditLog(interaction.guild, 'DM_SINGLE', targetUser, interaction.user, targetMessagePayload);
+                return interaction.editReply({ content: `✅ Communication payload successfully dispatched to account vector: **${targetUser.tag}**.` });
+            } catch (err) {
+                return interaction.editReply({ content: `⛔ Transmission delivery failed. Target account node **${targetUser.tag}** has direct routing pipeline closed (DMs locked).` });
+            }
+        }
+
+        if (cmd === 'announcement') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+                return interaction.reply({ content: '⛔ Operational permissions validation rejected.', ephemeral: true });
+            }
+
+            const announcePayload = interaction.options.getString('message');
+            const mentionType = interaction.options.getString('mention');
+
+            await interaction.deferReply({ flags: [ 'Ephemeral' ] });
+
+            const announcementEmbed = new EmbedBuilder()
+                .setTitle('📢 STRUCTURAL INFRASTRUCTURE ANNOUNCEMENT')
+                .setDescription(announcePayload)
+                .setColor('#FF3B30')
+                .setTimestamp()
+                .setFooter({ text: `Published by authorized actor: ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
+            if (serverIcon) announcementEmbed.setThumbnail(serverIcon);
+
+            let contentPing = '';
+            if (mentionType === 'everyone') contentPing = '@everyone';
+            if (mentionType === 'here') contentPing = '@here';
+
+            await interaction.channel.send({
+                content: contentPing ? contentPing : null,
+                embeds: [announcementEmbed]
+            });
+
+            return interaction.editReply({ content: '✅ Announcement broadcast matrix deployed into current stream location.' });
+        }
+
     } catch (err) {
         console.error("Critical matrix execution fault caught:", err);
         if (interaction.replied || interaction.deferred) {
-            return interaction.followUp({ content: '❌ System internal process engine error encountered while compiling output arrays.', ephemeral: true });
+            return interaction.followUp({ content: '❌ System internal process engine error encountered.', ephemeral: true }).catch(() => null);
         } else {
-            return interaction.reply({ content: '❌ System internal process engine error encountered while compiling output arrays.', ephemeral: true });
+            return interaction.reply({ content: '❌ System internal process engine error encountered.', ephemeral: true }).catch(() => null);
         }
     }
 });
